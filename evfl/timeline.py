@@ -367,29 +367,29 @@ class Timeline(BinaryObject):
                     break
 
     def _add_triggers_for_clip(self, clip: Clip) -> None:
-        s_idx = -1
         e_idx = -1
+        l_idx = -1
         start = clip.start_time
         end = start + clip.duration
         for i, t in enumerate(self.triggers):
             tc_start = t.clip.v.start_time
             tc_end = tc_start + t.clip.v.duration
-            if tc_start < start and s_idx == -1:
-                s_idx = i
-            if tc_end < end and e_idx == -1:
+            if tc_start < start and e_idx == -1:
                 e_idx = i
-            if not s_idx == -1 and not e_idx == -1:
+            if tc_end < end and l_idx == -1:
+                l_idx = i
+            if not e_idx == -1 and not l_idx == -1:
                 break
-
-        s_trigger = Trigger()
-        s_trigger.clip.v = clip
-        s_trigger.type = 1
-        self.triggers.insert(s_idx, s_trigger)
 
         e_trigger = Trigger()
         e_trigger.clip.v = clip
-        e_trigger.type = 2
+        e_trigger.type = TriggerType.ENTER
         self.triggers.insert(e_idx, e_trigger)
+
+        l_trigger = Trigger()
+        l_trigger.clip.v = clip
+        l_trigger.type = TriggerType.LEAVE
+        self.triggers.insert(l_idx, l_trigger)
 
     def _remove_triggers_for_clip(self, clip: Clip) -> None:
         t_set: typing.Set[Trigger] = set()
