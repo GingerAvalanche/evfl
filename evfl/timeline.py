@@ -340,3 +340,116 @@ class Timeline(BinaryObject):
 
     def _get_overriding_offset_to_self(self) -> int:
         return self._self_offset
+
+    def _fix_up_concurrent_clips_for_actor(self, actor: Actor, remove_if_no_clips: bool = False) -> None:
+        highest_clip_count = 0
+        for c in self.clips:
+            if c.actor.v == actor:
+                clip_count = c.actor_concurrent_clip + 1
+                if clip_count > highest_clip_count:
+                    highest_clip_count = clip_count
+        actor.concurrent_clips = highest_clip_count
+
+        if remove_if_no_clips and highest_clip_count == 0:
+            self.actors.remove(actor)
+
+    def _fix_up_concurrent_clips_for_clip(self, clip: Clip) -> None:
+        concurrent_clips = 0
+        start = clip.start_time
+        end = start + clip.duration
+        for c in self.clips:
+            if c.actor.v == clip.actor.v:
+                c_start = c.start_time
+                c_end = c_start + c.duration
+                if c_start <= end and c_end >= start:
+                    c.actor_concurrent_clip = concurrent_clips
+                    concurrent_clips += 1
+                elif c_start > end:
+                    break
+
+    def _add_triggers_for_clip(self, clip: Clip) -> None:
+        s_idx = -1
+        e_idx = -1
+        start = clip.start_time
+        end = start + clip.duration
+        for i, t in enumerate(self.triggers):
+            tc_start = t.clip.v.start_time
+            tc_end = tc_start + t.clip.v.duration
+            if tc_start < start and s_idx == -1:
+                s_idx = i
+            if tc_end < end and e_idx == -1:
+                e_idx = i
+            if not s_idx == -1 and not e_idx == -1:
+                break
+
+        s_trigger = Trigger()
+        s_trigger.clip.v = clip
+        s_trigger.type = 1
+        self.triggers.insert(s_idx, s_trigger)
+
+        e_trigger = Trigger()
+        e_trigger.clip.v = clip
+        e_trigger.type = 2
+        self.triggers.insert(e_idx, e_trigger)
+
+    def _remove_triggers_for_clip(self, clip: Clip) -> None:
+        t_set: typing.Set[Trigger] = set()
+        for t in self.triggers:
+            if t.clip.v == clip:
+                t_set.add(t)
+        for t in t_set:
+            self.triggers.remove(t)
+
+    def add_clip(self, clip: Clip, fix_up: bool = True) -> None:
+        idx = -1
+        actor_clips: typing.Set[Clip] = set()
+
+        for i, c in enumerate(self.clips):
+            if clip.start_time < c.start_time and idx == -1:
+                idx = i
+            if c.actor.v == clip.actor.v:
+                actor_clips.add(c)
+        self.clips.insert(idx,clip)
+
+        if clip.actor.v not in self.actors:
+            self.actors.append(clip.actor.v)
+
+        self._add_triggers_for_clip(clip)
+
+        if fix_up:
+            self._fix_up_concurrent_clips_for_clip(clip)
+            self._fix_up_concurrent_clips_for_actor(clip.actor.v)
+            self._set_indexes_from_values()
+
+    def add_clips(self, clips: typing.Set[Clip]) -> None:
+        actors: typing.Set[Actor] = set()
+        for c in clips:
+            actors.add(c.actor.v)
+            self.add_clip(c, fix_up=False)
+            self._fix_up_concurrent_clips_for_clip(c)
+
+        for a in actors:
+            self._fix_up_concurrent_clips_for_actor(a)
+
+        self._set_indexes_from_values()
+
+    def remove_clip(self, clip: Clip, fix_up: bool = True) -> Clip:
+        self.clips.remove(clip)
+        self._remove_triggers_for_clip(clip)
+
+        if fix_up:
+            self._fix_up_concurrent_clips_for_clip(clip)
+            self._fix_up_concurrent_clips_for_actor(clip.actor.v)
+            self._set_indexes_from_values()
+
+    def remove_clips(self, clips: typing.Set[Clip]) -> None:
+        actors: typing.Set[Actor] = set()
+        for c in clips:
+            actors.add(c.actor.v)
+            self.remove_clip(c, fix_up=False)
+            self._fix_up_concurrent_clips_for_clip(c)
+
+        for a in actors:
+            self._fix_up_concurrent_clips_for_actor(a, remove_if_no_clips=True)
+
+        self._set_indexes_from_values()
