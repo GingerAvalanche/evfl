@@ -423,6 +423,8 @@ class Timeline(BinaryObject):
     def add_clips(self, clips: typing.Set[Clip]) -> None:
         actors: typing.Set[Actor] = set()
         for c in clips:
+            if not c.actor.v in self.actors:
+                self.actors.append(c.actor.v)
             actors.add(c.actor.v)
             self.add_clip(c, fix_up=False)
             self._fix_up_concurrent_clips_for_clip(c)
