@@ -34,7 +34,6 @@ class Clip(BinaryObject):
         return (
             f"Clip(actor={self.actor}, "
             f"actor_action={self.actor_action}, "
-            f"actor_concurrent_clip={self.actor_concurrent_clip}, "
             f"start_time={self.start_time}, "
             f"duration={self.duration}, "
             f"params={self.params})"

@@ -39,7 +39,6 @@ class Actor(BinaryObject):
             f"actions={self.actions}, "
             f"queries={self.queries}, "
             f"params={self.params}, "
-            f"concurrent_clips={self.concurrent_clips})"
         )
 
     def find_action(self, name: str):
